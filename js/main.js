@@ -41,6 +41,11 @@ const App = (() => {
     UI.updatePushStatus('gps');
     Alert.reset();
 
+    // 主動請求通知權限（必須在使用者點擊後呼叫）
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+
     // 啟動 GPS
     const gpsOk = Geo.startTracking(onGpsUpdate);
     if (!gpsOk) {
