@@ -12,7 +12,7 @@ const Push = (() => {
       return false;
     }
     try {
-      swRegistration = await navigator.serviceWorker.register('/sw.js');
+      swRegistration = await navigator.serviceWorker.register('./sw.js');
       console.log('[Push] SW registered');
 
       // 接收 SW 的 postMessage（push 觸發語音播報）
