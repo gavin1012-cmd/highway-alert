@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>產生 PWA Icon</title></head>
+<body>
+<h2>點擊按鈕產生並下載 PWA Icons</h2>
+<button onclick="generate()">產生 Icons</button>
+<div id="out"></div>
+<script>
+function drawIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // 背景
+  ctx.fillStyle = '#0d1117';
+  ctx.roundRect(0, 0, size, size, size * 0.18);
+  ctx.fill();
+
+  // 外圓
+  ctx.beginPath();
+  ctx.arc(size/2, size*0.44, size*0.32, 0, Math.PI*2);
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = size * 0.05;
+  ctx.stroke();
+
+  // 道路 (水平線)
+  const roadY = size * 0.44;
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = size * 0.12;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(size*0.22, roadY);
+  ctx.lineTo(size*0.78, roadY);
+  ctx.stroke();
+
+  // 道路中線
+  ctx.strokeStyle = '#e3b341';
+  ctx.lineWidth = size * 0.025;
+  ctx.setLineDash([size*0.07, size*0.05]);
+  ctx.beginPath();
+  ctx.moveTo(size*0.25, roadY);
+  ctx.lineTo(size*0.75, roadY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 警示三角
+  const cx = size * 0.5, cy = size * 0.44;
+  const r = size * 0.14;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.lineTo(cx + r * 0.87, cy + r * 0.5);
+  ctx.lineTo(cx - r * 0.87, cy + r * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = '#e3b341';
+  ctx.fill();
+
+  // 感嘆號
+  ctx.fillStyle = '#0d1117';
+  ctx.font = `bold ${size*0.12}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('!', cx, cy + r*0.1);
+
+  // 文字
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = `bold ${size*0.1}px -apple-system, Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('國道預警', size/2, size*0.82);
+
+  return canvas;
+}
+
+function generate() {
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  [192, 512].forEach(size => {
+    const canvas = drawIcon(size);
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `icon-${size}.png`;
+      a.textContent = `下載 icon-${size}.png`;
+      a.style.cssText = 'display:block;margin:8px 0;font-size:16px';
+      out.appendChild(canvas);
+      out.appendChild(a);
+      canvas.style.cssText = `width:${Math.min(size,192)}px;height:${Math.min(size,192)}px;display:block;margin:8px 0;border:1px solid #ccc`;
+    });
+  });
+}
+</script>
+</body>
+</html>

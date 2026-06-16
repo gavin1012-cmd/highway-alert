@@ -1,0 +1,497 @@
+/* ============================================================
+   CSS 變數 & 全域設定
+   ============================================================ */
+:root {
+  --bg:          #0d1117;
+  --bg-card:     #161b22;
+  --bg-input:    #21262d;
+  --border:      #30363d;
+  --text:        #e6edf3;
+  --text-muted:  #8b949e;
+  --accent:      #58a6ff;
+  --green:       #2ea043;
+  --green-light: #3fb950;
+  --yellow:      #d29922;
+  --yellow-light:#e3b341;
+  --orange:      #bd561d;
+  --orange-light:#db6d28;
+  --red:         #b62324;
+  --red-light:   #da3633;
+  --unknown:     #30363d;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --shadow:      0 4px 16px rgba(0,0,0,.4);
+}
+
+/* 強制深色（不跟隨系統，開車場景固定深色）*/
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top));
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.update-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
+}
+
+.app-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: .5px;
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.settings-btn:active { opacity: .6; }
+
+/* ============================================================
+   Status Section
+   ============================================================ */
+.status-section {
+  padding: 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.road-info {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.speed-direction-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.speed-display {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.direction-display {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.push-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-inactive  { background: var(--text-muted); }
+.dot-active    { background: var(--green-light); box-shadow: 0 0 6px var(--green); }
+.dot-push      { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.dot-error     { background: var(--red-light); }
+
+/* ============================================================
+   Traffic Bar
+   ============================================================ */
+.traffic-section {
+  padding: 16px;
+  background: var(--bg);
+}
+
+.traffic-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.traffic-bar {
+  display: flex;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.traffic-segment {
+  flex: 1;
+  border-radius: 3px;
+  transition: background-color .5s ease;
+  position: relative;
+}
+.traffic-segment::after {
+  content: attr(data-km) 'k';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 9px;
+  color: rgba(255,255,255,.35);
+  font-variant-numeric: tabular-nums;
+}
+
+.traffic-segment.unknown { background: var(--unknown); }
+.traffic-segment.green   { background: var(--green); }
+.traffic-segment.yellow  { background: var(--yellow); }
+.traffic-segment.orange  { background: var(--orange); }
+.traffic-segment.red     { background: var(--red); animation: pulse-red 1.5s infinite; }
+
+@keyframes pulse-red {
+  0%, 100% { background: var(--red); }
+  50%       { background: var(--red-light); }
+}
+
+.traffic-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+.traffic-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-dot.green  { background: var(--green-light); }
+.legend-dot.yellow { background: var(--yellow-light); }
+.legend-dot.orange { background: var(--orange-light); }
+.legend-dot.red    { background: var(--red-light); }
+
+.legend-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+/* ============================================================
+   Alert Section
+   ============================================================ */
+.alert-section {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+}
+
+.alert-card {
+  background: var(--bg-card);
+  border: 1px solid var(--orange);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  box-shadow: 0 0 20px rgba(189,86,29,.3);
+}
+
+.alert-card.red-alert {
+  border-color: var(--red-light);
+  box-shadow: 0 0 20px rgba(218,54,51,.3);
+}
+
+.alert-icon-text {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.alert-body { flex: 1; }
+
+.alert-message {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.alert-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.no-alert-text {
+  font-size: 15px;
+  color: var(--text-muted);
+  text-align: center;
+  width: 100%;
+  padding-top: 8px;
+}
+
+/* ============================================================
+   Control Button
+   ============================================================ */
+.control-section {
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.monitor-btn {
+  width: 100%;
+  height: 64px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  letter-spacing: .5px;
+  box-shadow: var(--shadow);
+  transition: transform .1s, opacity .1s, background .3s;
+  -webkit-user-select: none;
+}
+
+.monitor-btn:active {
+  transform: scale(.97);
+  opacity: .9;
+}
+
+.monitor-btn.active {
+  background: var(--red-light);
+}
+
+.btn-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ============================================================
+   Settings Drawer
+   ============================================================ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 50;
+  opacity: 1;
+  transition: opacity .25s;
+}
+
+.settings-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-radius: var(--radius) var(--radius) 0 0;
+  border-top: 1px solid var(--border);
+  z-index: 60;
+  max-height: 80dvh;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateY(0);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+
+.settings-drawer.hidden { transform: translateY(100%); }
+.overlay.hidden { opacity: 0; pointer-events: none; }
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+}
+
+.settings-header h2 { font-size: 18px; font-weight: 600; }
+
+.close-btn {
+  background: var(--bg-input);
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.setting-group { display: flex; flex-direction: column; gap: 10px; }
+
+.setting-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.radio-label, .check-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.radio-label input, .check-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.text-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.text-input:focus { border-color: var(--accent); }
+
+.save-btn {
+  width: 100%;
+  height: 48px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.save-btn:active { opacity: .8; }
+
+.worker-status-row {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-height: 20px;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Install Banner
+   ============================================================ */
+.install-banner {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  left: 16px;
+  right: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  z-index: 40;
+  box-shadow: var(--shadow);
+}
+
+.install-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* iOS safe area for standalone mode */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
+}

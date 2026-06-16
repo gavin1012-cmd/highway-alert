@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="國道預警" />
+  <title>高速公路車流預警</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 頂部狀態列 -->
+  <header class="app-header">
+    <div class="update-time" id="updateTime">--:--:--</div>
+    <h1 class="app-title">國道預警</h1>
+    <button class="settings-btn" id="settingsBtn" aria-label="設定">⚙</button>
+  </header>
+
+  <!-- 位置與速度資訊 -->
+  <section class="status-section">
+    <div class="road-info" id="roadInfo">等待 GPS 定位...</div>
+    <div class="speed-direction-row">
+      <span class="speed-display" id="currentSpeed">-- km/h</span>
+      <span class="direction-display" id="currentDirection">--</span>
+    </div>
+    <div class="push-status" id="pushStatus">
+      <span class="status-dot dot-inactive"></span>
+      <span class="status-text">未啟動</span>
+    </div>
+  </section>
+
+  <!-- 前方路況色塊條 -->
+  <section class="traffic-section">
+    <div class="traffic-label">前方 10 公里路況</div>
+    <div class="traffic-bar" id="trafficBar">
+      <div class="traffic-segment unknown" data-km="1"></div>
+      <div class="traffic-segment unknown" data-km="2"></div>
+      <div class="traffic-segment unknown" data-km="3"></div>
+      <div class="traffic-segment unknown" data-km="4"></div>
+      <div class="traffic-segment unknown" data-km="5"></div>
+      <div class="traffic-segment unknown" data-km="6"></div>
+      <div class="traffic-segment unknown" data-km="7"></div>
+      <div class="traffic-segment unknown" data-km="8"></div>
+      <div class="traffic-segment unknown" data-km="9"></div>
+      <div class="traffic-segment unknown" data-km="10"></div>
+    </div>
+    <div class="traffic-scale">
+      <span>0</span><span>2km</span><span>4km</span><span>6km</span><span>8km</span><span>10km</span>
+    </div>
+    <div class="traffic-legend">
+      <span class="legend-dot green"></span><span class="legend-label">暢通</span>
+      <span class="legend-dot yellow"></span><span class="legend-label">車多</span>
+      <span class="legend-dot orange"></span><span class="legend-label">壅塞</span>
+      <span class="legend-dot red"></span><span class="legend-label">嚴重</span>
+    </div>
+  </section>
+
+  <!-- 警示區 -->
+  <section class="alert-section">
+    <div class="alert-card hidden" id="alertCard">
+      <div class="alert-icon-text">⚠</div>
+      <div class="alert-body">
+        <div class="alert-message" id="alertMessage"></div>
+        <div class="alert-time" id="alertTime"></div>
+      </div>
+    </div>
+    <div class="no-alert-text" id="noAlertText">路況良好，行車順暢</div>
+  </section>
+
+  <!-- 開始/停止按鈕 -->
+  <section class="control-section">
+    <button class="monitor-btn" id="monitorBtn">
+      <span class="btn-icon" id="btnIcon">▶</span>
+      <span class="btn-text" id="btnText">開始監控</span>
+    </button>
+  </section>
+
+  <!-- 設定 Drawer -->
+  <div class="overlay hidden" id="settingsOverlay"></div>
+  <aside class="settings-drawer hidden" id="settingsDrawer">
+    <div class="settings-header">
+      <h2>設定</h2>
+      <button class="close-btn" id="closeSettings" aria-label="關閉">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <div class="setting-group">
+        <div class="setting-label">預警靈敏度</div>
+        <label class="radio-label">
+          <input type="radio" name="sensitivity" value="yellow" />
+          一般（黃色以上即警示）
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="sensitivity" value="orange" checked />
+          嚴格（橘色以上才警示）
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">通知方式</div>
+        <label class="check-label">
+          <input type="checkbox" id="notifyPush" checked />
+          背景推播通知（螢幕關閉仍有效）
+        </label>
+        <label class="check-label">
+          <input type="checkbox" id="notifyVoice" checked />
+          語音播報（螢幕開啟時）
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">預警距離</div>
+        <label class="radio-label">
+          <input type="radio" name="alertDist" value="auto" checked />
+          自動（依車速，最高 8 km）
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="alertDist" value="3" />
+          固定 3 km
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="alertDist" value="5" />
+          固定 5 km
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="alertDist" value="8" />
+          固定 8 km
+        </label>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">Cloudflare Worker URL</div>
+        <input
+          type="url"
+          class="text-input"
+          id="workerUrlInput"
+          placeholder="https://highway-alert.YOUR_NAME.workers.dev"
+        />
+        <div class="setting-label" style="margin-top:12px">VAPID 公鑰</div>
+        <input
+          type="text"
+          class="text-input"
+          id="vapidKeyInput"
+          placeholder="BxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxA="
+        />
+        <button class="save-btn" id="saveSettingsBtn">儲存設定</button>
+        <div class="worker-status-row" id="workerStatusRow"></div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- iOS 安裝提示 -->
+  <div class="install-banner hidden" id="installBanner">
+    <span>點「分享」→「加入主畫面」以安裝 App</span>
+    <button class="install-close" id="installClose">✕</button>
+  </div>
+
+  <!-- Icon 產生器（首次執行，生成 PNG icon） -->
+  <canvas id="iconCanvas" style="display:none"></canvas>
+
+  <script src="config.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/traffic.js"></script>
+  <script src="js/alert.js"></script>
+  <script src="js/push.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
