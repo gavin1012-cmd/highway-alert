@@ -5,11 +5,10 @@
 const APP_CONFIG = {
   // Cloudflare Worker URL（部署後填入）
   // 格式: https://highway-alert.YOUR_NAME.workers.dev
-  WORKER_URL: '',
+  WORKER_URL: 'https://highway-alert.highway-alert.workers.dev',
 
   // VAPID 公鑰（與 Worker 的 VAPID_PUBLIC_KEY 環境變數相同）
-  // 用 `npx web-push generate-vapid-keys` 產生，或在 Worker 部署說明中取得
-  VAPID_PUBLIC_KEY: '',
+  VAPID_PUBLIC_KEY: 'BOX1JKoo8bJ_jwvXFeEMfzIbfn5HcBc57poDolWpOTDVgi0p3R5PcY9g8bCFAbV1iD5S1j1OYUFnHvfYRf92Cjk',
 
   // 路況警示設定
   ALERT: {
