@@ -41,42 +41,45 @@ const App = (() => {
     UI.updatePushStatus('gps');
     Alert.reset();
 
-    // 主動請求通知權限（必須在使用者點擊後呼叫）
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+    try {
+      // 通知權限（最多等 5 秒，不卡住主流程）
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Promise.race([
+          Notification.requestPermission(),
+          new Promise(r => setTimeout(r, 5000)),
+        ]);
+      }
+
+      // 啟動 GPS
+      const gpsOk = Geo.startTracking(onGpsUpdate);
+      if (!gpsOk) {
+        alert('無法取得 GPS，請確認位置權限已開啟。');
+        await stopMonitoring();
+        return;
+      }
+
+      // 等待首次 GPS 定位（最多 10 秒）
+      await waitForGps();
+
+      const pos = Geo.getState();
+
+      // 啟動 Worker session（背景推播），最多等 10 秒
+      let pushOk = false;
+      if (APP_CONFIG.WORKER_URL) {
+        const result = await Promise.race([
+          Push.startSession(pos || { lat: 0, lng: 0, heading: 0, speed: 0 }),
+          new Promise(r => setTimeout(() => r({ ok: false, error: 'timeout' }), 10000)),
+        ]);
+        pushOk = result.ok;
+        if (!pushOk) console.warn('[App] Worker session failed:', result.error);
+      }
+
+      UI.updatePushStatus(pushOk ? 'push' : 'active');
+
+    } catch (err) {
+      console.error('[App] startMonitoring error:', err);
+      UI.updatePushStatus('active'); // 確保不會卡在「定位中」
     }
-
-    // 啟動 GPS
-    const gpsOk = Geo.startTracking(onGpsUpdate);
-    if (!gpsOk) {
-      alert('無法取得 GPS，請確認位置權限已開啟。');
-      await stopMonitoring();
-      return;
-    }
-
-    // 等待首次 GPS 定位（最多 10 秒）
-    await waitForGps();
-
-    const pos = Geo.getState();
-    if (!pos) {
-      console.warn('[App] No GPS position after wait');
-    }
-
-    // 啟動 Worker session（背景推播），最多等 10 秒
-    let pushOk = false;
-    if (APP_CONFIG.WORKER_URL) {
-      const timeout = new Promise(resolve =>
-        setTimeout(() => resolve({ ok: false, error: 'timeout' }), 10000)
-      );
-      const result = await Promise.race([
-        Push.startSession(pos || { lat: 0, lng: 0, heading: 0, speed: 0 }),
-        timeout,
-      ]);
-      pushOk = result.ok;
-      if (!pushOk) console.warn('[App] Worker session failed:', result.error);
-    }
-
-    UI.updatePushStatus(pushOk ? 'push' : 'active');
 
     // 立即查一次路況
     await pollTraffic();
