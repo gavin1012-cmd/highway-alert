@@ -129,8 +129,9 @@ const UI = (() => {
     if (workerUrl) APP_CONFIG.WORKER_URL = workerUrl;
     if (vapidKey) APP_CONFIG.VAPID_PUBLIC_KEY = vapidKey;
 
+    const testMode = $('testMode')?.checked || false;
     localStorage.setItem('highway_alert_settings', JSON.stringify({
-      workerUrl, vapidKey, sensitivity, lookahead,
+      workerUrl, vapidKey, sensitivity, lookahead, testMode,
     }));
 
     // 測試 Worker 連線
@@ -177,6 +178,10 @@ const UI = (() => {
     }
     if (saved.lookahead) {
       const el = document.querySelector(`input[name="alertDist"][value="${saved.lookahead}"]`);
+      if (el) el.checked = true;
+    }
+    if (saved.testMode) {
+      const el = $('testMode');
       if (el) el.checked = true;
     }
   }

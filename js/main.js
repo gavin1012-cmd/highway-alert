@@ -122,10 +122,11 @@ const App = (() => {
       document.querySelector('input[name="alertDist"]:checked')?.value || 'auto'
     );
     const relevantSegs = segments.filter(s => s.km <= alertDist);
-    const nearVD = Object.values(Traffic.getLatestConditions()).some(
-      s => Geo.distanceBetween(pos.lat, pos.lng, s.lat, s.lng) <= 1.5
+    const testMode = document.getElementById('testMode')?.checked || false;
+    const nearVD = testMode || Object.values(Traffic.getLatestConditions()).some(
+      s => Geo.distanceBetween(pos.lat, pos.lng, s.lat, s.lng) <= 2.5
     );
-    const triggered = (nearVD && pos.speed > 10) ? Alert.checkSegments(relevantSegs) : [];
+    const triggered = (nearVD && (testMode || pos.speed > 10)) ? Alert.checkSegments(relevantSegs) : [];
 
     if (triggered.length > 0) {
       // 取最嚴重的警示顯示

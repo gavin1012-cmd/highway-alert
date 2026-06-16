@@ -404,6 +404,14 @@ body {
   font-weight: 600;
 }
 
+.setting-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  line-height: 1.4;
+  margin-top: -4px;
+}
+
 .radio-label, .check-label {
   display: flex;
   align-items: center;
