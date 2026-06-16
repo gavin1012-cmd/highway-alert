@@ -2,7 +2,7 @@
   "name": "高速公路車流預警",
   "short_name": "國道預警",
   "description": "即時監控前方高速公路路況，壅塞時自動發出語音與推播警示",
-  "start_url": "/",
+  "start_url": "/highway-alert/",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#0d1117",
@@ -25,7 +25,7 @@
   "shortcuts": [
     {
       "name": "立即開始監控",
-      "url": "/?autostart=1",
+      "url": "/highway-alert/?autostart=1",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ],
