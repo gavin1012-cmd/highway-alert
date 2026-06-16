@@ -128,6 +128,12 @@ const App = (() => {
     const segments = Traffic.getAheadSegments(pos);
     UI.updateTrafficBar(segments);
 
+    // 更新路名（2 km 內有主線 VD 站才顯示）
+    const roadName = Traffic.getNearestRoadName(pos);
+    if (roadName) {
+      document.getElementById('roadInfo').textContent = roadName;
+    }
+
     // 預警邏輯：確認在高速公路上（附近 1.5 km 內有 VD 站且車速 > 10 km/h）才警示
     const alertDist = Geo.getAlertDistance(
       pos.speed,

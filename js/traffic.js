@@ -147,6 +147,33 @@ const Traffic = (() => {
     return segments;
   }
 
+  // 解析 VDID 取得路名，例：VD-N1-N-86.120-M-LOOP → 「國道1號 北向 86K」
+  function parseVDID(vdid) {
+    const m = vdid.match(/^VD-([A-Z]\d+)-([NSEW])-(\d+(?:\.\d+)?)-M-/);
+    if (!m) return null;
+    const routeMap = {
+      N1:'國道1號', N2:'國道2號', N3:'國道3號',
+      N4:'國道4號', N5:'國道5號', N6:'國道6號',
+      N8:'國道8號', N10:'國道10號',
+    };
+    const dirMap = { N:'北向', S:'南向', E:'東向', W:'西向' };
+    const route = routeMap[m[1]] || m[1];
+    const dir   = dirMap[m[2]]   || m[2];
+    const km    = Math.round(parseFloat(m[3]));
+    return `${route} ${dir} ${km}K`;
+  }
+
+  // 取得最近主線 VD 站的路名（2 km 內才顯示）
+  function getNearestRoadName(position, maxDistKm = 2.0) {
+    let nearest = null, minDist = Infinity;
+    Object.entries(latestConditions).forEach(([id, st]) => {
+      if (!id.includes('-M-')) return;
+      const d = Geo.distanceBetween(position.lat, position.lng, st.lat, st.lng);
+      if (d < minDist && d <= maxDistKm) { minDist = d; nearest = id; }
+    });
+    return nearest ? parseVDID(nearest) : null;
+  }
+
   return {
     LEVEL,
     LEVEL_NAME,
@@ -156,5 +183,6 @@ const Traffic = (() => {
     getConditionAtPoint,
     getAheadSegments,
     getLatestConditions: () => latestConditions,
+    getNearestRoadName,
   };
 })();
