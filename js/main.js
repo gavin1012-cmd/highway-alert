@@ -116,13 +116,16 @@ const App = (() => {
     const segments = Traffic.getAheadSegments(pos);
     UI.updateTrafficBar(segments);
 
-    // 預警邏輯：只在高速公路速度（≥50 km/h）時警示，避免在家或市區誤報
+    // 預警邏輯：確認在高速公路上（附近 1.5 km 內有 VD 站且車速 > 10 km/h）才警示
     const alertDist = Geo.getAlertDistance(
       pos.speed,
       document.querySelector('input[name="alertDist"]:checked')?.value || 'auto'
     );
     const relevantSegs = segments.filter(s => s.km <= alertDist);
-    const triggered = pos.speed >= 50 ? Alert.checkSegments(relevantSegs) : [];
+    const nearVD = Object.values(Traffic.getLatestConditions()).some(
+      s => Geo.distanceBetween(pos.lat, pos.lng, s.lat, s.lng) <= 1.5
+    );
+    const triggered = (nearVD && pos.speed > 10) ? Alert.checkSegments(relevantSegs) : [];
 
     if (triggered.length > 0) {
       // 取最嚴重的警示顯示
