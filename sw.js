@@ -1,20 +1,20 @@
 // Service Worker：快取 App Shell + 接收 Web Push
 
-const CACHE_NAME = 'highway-alert-v1';
+const CACHE_NAME = 'highway-alert-v2';
 const SHELL_FILES = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/config.js',
-  '/manifest.json',
-  '/js/geo.js',
-  '/js/traffic.js',
-  '/js/alert.js',
-  '/js/push.js',
-  '/js/ui.js',
-  '/js/main.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/highway-alert/',
+  '/highway-alert/index.html',
+  '/highway-alert/style.css',
+  '/highway-alert/config.js',
+  '/highway-alert/manifest.json',
+  '/highway-alert/js/geo.js',
+  '/highway-alert/js/traffic.js',
+  '/highway-alert/js/alert.js',
+  '/highway-alert/js/push.js',
+  '/highway-alert/js/ui.js',
+  '/highway-alert/js/main.js',
+  '/highway-alert/icons/icon-192.png',
+  '/highway-alert/icons/icon-512.png',
 ];
 
 // ─── Install：快取 App Shell ───────────────────────────────
