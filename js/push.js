@@ -61,10 +61,16 @@ const Push = (() => {
 
     try {
       const keyBytes = urlBase64ToUint8Array(APP_CONFIG.VAPID_PUBLIC_KEY);
-      pushSubscription = await swRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyBytes,
-      });
+      const subscribeTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('subscribe timeout')), 8000)
+      );
+      pushSubscription = await Promise.race([
+        swRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: keyBytes,
+        }),
+        subscribeTimeout,
+      ]);
       console.log('[Push] Subscribed:', pushSubscription.endpoint);
       return pushSubscription;
     } catch (err) {

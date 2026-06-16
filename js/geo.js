@@ -66,6 +66,8 @@ const Geo = (() => {
 
   function handleError(err) {
     console.warn('[Geo] Error', err.code, err.message);
+    // 通知回調讓 UI 知道定位失敗（傳 null）
+    if (onUpdateCallback) onUpdateCallback(null);
   }
 
   // 計算從 (lat1,lng1) 到 (lat2,lng2) 的方位角（度）

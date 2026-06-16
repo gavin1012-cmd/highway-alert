@@ -62,14 +62,18 @@ const App = (() => {
       console.warn('[App] No GPS position after wait');
     }
 
-    // 啟動 Worker session（背景推播）
+    // 啟動 Worker session（背景推播），最多等 10 秒
     let pushOk = false;
     if (APP_CONFIG.WORKER_URL) {
-      const result = await Push.startSession(pos || { lat: 0, lng: 0, heading: 0, speed: 0 });
+      const timeout = new Promise(resolve =>
+        setTimeout(() => resolve({ ok: false, error: 'timeout' }), 10000)
+      );
+      const result = await Promise.race([
+        Push.startSession(pos || { lat: 0, lng: 0, heading: 0, speed: 0 }),
+        timeout,
+      ]);
       pushOk = result.ok;
-      if (!pushOk) {
-        console.warn('[App] Worker session failed:', result.error);
-      }
+      if (!pushOk) console.warn('[App] Worker session failed:', result.error);
     }
 
     UI.updatePushStatus(pushOk ? 'push' : 'active');
@@ -98,7 +102,12 @@ const App = (() => {
   }
 
   function onGpsUpdate(position) {
-    UI.updateStatus(position);
+    if (position) {
+      UI.updateStatus(position);
+    } else {
+      // GPS 定位失敗
+      document.getElementById('roadInfo').textContent = 'GPS 定位失敗，請確認位置權限';
+    }
   }
 
   async function pollTraffic() {
