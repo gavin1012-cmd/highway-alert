@@ -13,13 +13,13 @@ const UI = (() => {
   }
 
   // 更新位置/速度狀態
-  function updateStatus(position) {
+  function updateStatus(position, roadName) {
     if (!position) return;
     $('currentSpeed').textContent = `${position.speed} km/h`;
     $('currentDirection').textContent =
       `↑ ${Geo.headingToText(position.heading)} (${Math.round(position.heading)}°)`;
-    // 路名推算（暫用座標顯示，Worker 回傳後可覆蓋）
-    $('roadInfo').textContent =
+    // 有路名就顯示路名，否則顯示座標
+    $('roadInfo').textContent = roadName ||
       `${position.lat.toFixed(4)}°N, ${position.lng.toFixed(4)}°E`;
   }
 

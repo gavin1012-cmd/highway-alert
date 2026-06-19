@@ -4,6 +4,7 @@ const App = (() => {
   let isMonitoring = false;
   let pollTimer = null;
   let clockTimer = null;
+  let lastKnownRoadName = null;
 
   async function init() {
     // 啟動時鐘
@@ -90,6 +91,7 @@ const App = (() => {
 
   async function stopMonitoring() {
     isMonitoring = false;
+    lastKnownRoadName = null;
     UI.setMonitoringState(false);
     UI.updatePushStatus('inactive');
 
@@ -106,9 +108,8 @@ const App = (() => {
 
   function onGpsUpdate(position) {
     if (position) {
-      UI.updateStatus(position);
+      UI.updateStatus(position, lastKnownRoadName);
     } else {
-      // GPS 定位失敗
       document.getElementById('roadInfo').textContent = 'GPS 定位失敗，請確認位置權限';
     }
   }
@@ -131,6 +132,7 @@ const App = (() => {
     // 更新路名（2 km 內有主線 VD 站才顯示）
     const roadName = Traffic.getNearestRoadName(pos);
     if (roadName) {
+      lastKnownRoadName = roadName;
       document.getElementById('roadInfo').textContent = roadName;
     }
 
