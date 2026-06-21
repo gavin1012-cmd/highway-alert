@@ -126,12 +126,16 @@ const App = (() => {
       return;
     }
 
-    // 取前方 10 km 路況並更新 UI
-    const segments = Traffic.getAheadSegments(pos);
-    UI.updateTrafficBar(segments);
-
-    // 更新廊道鎖定（進入國道後鎖定，2 分鐘無 VD 站才解鎖）
+    // 先更新廊道鎖定，再計算色塊條（順序很重要）
     const corridor = Traffic.updateCorridorLock(pos);
+
+    // 取前方 10 km 路況並更新 UI（未在國道上則顯示全灰）
+    const testMode = document.getElementById('testMode')?.checked || false;
+    const onHighway = testMode || !!corridor;
+    const segments = onHighway
+      ? Traffic.getAheadSegments(pos)
+      : Array(10).fill({ level: Traffic.LEVEL.UNKNOWN });
+    UI.updateTrafficBar(segments);
 
     // 更新路名（廊道鎖定時搜尋範圍放寬；未鎖定時 2km 內才顯示）
     const roadName = Traffic.getNearestRoadName(pos);
@@ -149,8 +153,6 @@ const App = (() => {
       document.querySelector('input[name="alertDist"]:checked')?.value || 'auto'
     );
     const relevantSegs = segments.filter(s => s.km <= alertDist);
-    const testMode = document.getElementById('testMode')?.checked || false;
-    const onHighway = testMode || !!corridor;
     const triggered = (onHighway && (testMode || pos.speed > 10)) ? Alert.checkSegments(relevantSegs) : [];
 
     if (triggered.length > 0) {
