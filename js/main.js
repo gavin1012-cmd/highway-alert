@@ -5,6 +5,7 @@ const App = (() => {
   let pollTimer = null;
   let clockTimer = null;
   let lastKnownRoadName = null;
+  let roadInfoOverride = null; // 優先於座標顯示的狀態文字（如「尚未進入國道」）
 
   async function init() {
     // 啟動時鐘
@@ -92,6 +93,7 @@ const App = (() => {
   async function stopMonitoring() {
     isMonitoring = false;
     lastKnownRoadName = null;
+    roadInfoOverride = null;
     Traffic.resetCorridor();
     UI.setMonitoringState(false);
     UI.updatePushStatus('inactive');
@@ -109,7 +111,7 @@ const App = (() => {
 
   function onGpsUpdate(position) {
     if (position) {
-      UI.updateStatus(position, lastKnownRoadName);
+      UI.updateStatus(position, lastKnownRoadName || roadInfoOverride);
     } else {
       document.getElementById('roadInfo').textContent = 'GPS 定位失敗，請確認位置權限';
     }
@@ -137,14 +139,19 @@ const App = (() => {
       : Array(10).fill({ level: Traffic.LEVEL.UNKNOWN });
     UI.updateTrafficBar(segments);
 
-    // 更新路名（廊道鎖定時搜尋範圍放寬；未鎖定時 2km 內才顯示）
+    // 更新路名與狀態文字
     const roadName = Traffic.getNearestRoadName(pos);
     if (roadName) {
       lastKnownRoadName = roadName;
+      roadInfoOverride = null;
       document.getElementById('roadInfo').textContent = roadName;
-    } else if (!corridor && lastKnownRoadName) {
-      // 離開國道後清除路名
+    } else if (corridor) {
+      // 廊道已鎖但兩站之間找不到路名，保留上次路名
+    } else {
+      // 未進入國道
       lastKnownRoadName = null;
+      roadInfoOverride = testMode ? null : '尚未進入國道';
+      if (!testMode) document.getElementById('roadInfo').textContent = roadInfoOverride;
     }
 
     // 預警邏輯：廊道已鎖定（確實在國道上）且車速 > 10 km/h 才警示
