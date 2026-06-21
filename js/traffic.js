@@ -8,6 +8,7 @@ const Traffic = (() => {
   // 廊道鎖定：偵測到使用者在哪條國道後鎖定，只顯示該廊道資料
   let lockedCorridor = null;  // e.g. 'N3-S'
   let unlockTimer = null;
+  let corridorLockedAt = 0;   // timestamp，用來計算 12 分鐘強制解鎖
 
   // 路況等級
   const LEVEL = { GREEN: 0, YELLOW: 1, ORANGE: 2, RED: 3, UNKNOWN: -1 };
@@ -46,9 +47,29 @@ const Traffic = (() => {
         if (corridor !== lockedCorridor) {
           console.log('[Traffic] Corridor locked:', corridor);
           lockedCorridor = corridor;
+          corridorLockedAt = Date.now();
         }
-        // 重置解鎖計時器：120 秒無 VD 站才解鎖（100km/h 時約 3.3km，覆蓋最大站距）
+        // 重置解鎖計時器：120 秒無 VD 站才解鎖
         if (unlockTimer) clearTimeout(unlockTimer);
+        unlockTimer = setTimeout(() => {
+          console.log('[Traffic] Corridor unlocked');
+          lockedCorridor = null;
+          unlockTimer = null;
+        }, 120000);
+      }
+    } else if (lockedCorridor) {
+      // 附近找不到 VD 站
+      if ((position.speed || 0) < 10) {
+        // 車速 < 10 km/h：可能卡在車陣中，抑制解鎖計時器
+        if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
+        // 但最多 12 分鐘後強制解鎖（避免下匝道後停車燈誤鎖）
+        if (Date.now() - corridorLockedAt > 12 * 60 * 1000) {
+          console.log('[Traffic] Force unlock after 12 min low-speed');
+          lockedCorridor = null;
+          corridorLockedAt = 0;
+        }
+      } else if (!unlockTimer) {
+        // 車速正常但找不到 VD，啟動 120 秒解鎖倒數
         unlockTimer = setTimeout(() => {
           console.log('[Traffic] Corridor unlocked');
           lockedCorridor = null;
@@ -64,6 +85,7 @@ const Traffic = (() => {
 
   function resetCorridor() {
     lockedCorridor = null;
+    corridorLockedAt = 0;
     if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
   }
 
@@ -124,24 +146,60 @@ const Traffic = (() => {
       : { level: LEVEL.UNKNOWN, speed: -1, distKm: null };
   }
 
-  // 取得前方 10 公里每 1 km 的路況（含速度趨勢調整）
+  // 取得前方 10 公里每 1 km 的路況（含速度趨勢、VD 補間、急速失速旗標）
   function getAheadSegments(position) {
     if (!position) return Array(10).fill({ level: LEVEL.UNKNOWN });
-    const segments = [];
+
+    // 第一步：取原始路況
+    const rawSegs = [];
     for (let km = 1; km <= 10; km++) {
       const pt = Geo.pointAhead(position.lat, position.lng, position.heading, km);
       const cond = getConditionAtPoint(pt.lat, pt.lng);
 
-      // 速度趨勢：若該站速度比上次下降 ≥15 km/h，等級加重一級
       let level = cond.level;
+      let rapidDecel = false;
       if (cond.id && cond.level !== LEVEL.UNKNOWN && prevConditions[cond.id]) {
         const drop = (prevConditions[cond.id].speed || 0) - (cond.speed || 0);
-        if (drop >= 15) level = Math.min(level + 1, LEVEL.RED);
+        if (drop >= 30) {
+          // 急速失速（ΔV ≥ 30 km/h）→ 特殊警示旗標，強制 RED
+          rapidDecel = true;
+          level = LEVEL.RED;
+        } else if (drop >= 15) {
+          level = Math.min(level + 1, LEVEL.RED);
+        }
       }
-
-      segments.push({ km, ...cond, level });
+      rawSegs.push({ km, ...cond, level, rapidDecel });
     }
-    return segments;
+
+    // 第二步：VD 空白補間
+    // - 1～2 個連續灰格（夾在已知段之間）→ 填入較差的鄰段
+    // - 首格（km=1）灰 + km=2 已知 → 繼承 km=2（左邊視為 UNKNOWN）
+    // - 3+ 個連續灰格 → 保留灰色，不補間
+    for (let i = 0; i < rawSegs.length; ) {
+      if (rawSegs[i].level !== LEVEL.UNKNOWN) { i++; continue; }
+
+      let runEnd = i;
+      while (runEnd < rawSegs.length && rawSegs[runEnd].level === LEVEL.UNKNOWN) runEnd++;
+      const runLength = runEnd - i;
+
+      if (runLength <= 2) {
+        const leftLevel  = i > 0       ? rawSegs[i - 1].level  : LEVEL.UNKNOWN;
+        const rightLevel = runEnd < rawSegs.length ? rawSegs[runEnd].level : LEVEL.UNKNOWN;
+        if (leftLevel !== LEVEL.UNKNOWN || rightLevel !== LEVEL.UNKNOWN) {
+          const useLeft  = leftLevel >= rightLevel;
+          const fillLevel = useLeft ? leftLevel : rightLevel;
+          const fillSrc  = useLeft ? rawSegs[i - 1] : rawSegs[runEnd];
+          for (let j = i; j < runEnd; j++) {
+            rawSegs[j] = { ...rawSegs[j], level: fillLevel, speed: fillSrc.speed };
+          }
+        }
+      }
+      // 3+ 連續灰格 → 不動
+
+      i = runEnd;
+    }
+
+    return rawSegs;
   }
 
   // 解析 VDID 取得路名，例：VD-N1-N-86.120-M-LOOP → 「國道1號 北向 86K」

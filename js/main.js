@@ -160,10 +160,16 @@ const App = (() => {
       document.querySelector('input[name="alertDist"]:checked')?.value || 'auto'
     );
     const relevantSegs = segments.filter(s => s.km <= alertDist);
-    const triggered = (onHighway && (testMode || pos.speed > 10)) ? Alert.checkSegments(relevantSegs) : [];
+    const shouldAlert = onHighway && (testMode || pos.speed > 10);
+    const triggered = shouldAlert ? Alert.checkSegments(relevantSegs) : [];
 
-    if (triggered.length > 0) {
-      // 取最嚴重的警示顯示
+    // 急速失速優先（ΔV ≥ 30 km/h 的前方 VD 站）
+    const decelSeg = shouldAlert ? relevantSegs.find(s => s.rapidDecel) : null;
+    if (decelSeg) {
+      const msg = `⚡ 急速失速！前方 ${decelSeg.km} 公里疑似事故，緊急注意！`;
+      UI.showCriticalAlert(msg);
+      Alert.speak(`前方 ${decelSeg.km} 公里急速失速，疑似事故，緊急注意`);
+    } else if (triggered.length > 0) {
       const worst = triggered.reduce((a, b) => b.level > a.level ? b : a);
       UI.showAlert(worst.message, worst.level);
     }

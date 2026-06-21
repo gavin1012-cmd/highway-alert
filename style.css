@@ -104,8 +104,8 @@ body {
 }
 
 .road-info {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -171,11 +171,18 @@ body {
 }
 
 .traffic-segment {
-  flex: 1;
+  flex: 25;
   border-radius: 3px;
   transition: background-color .5s ease;
   position: relative;
 }
+/* 遞進寬度：近端大、遠端小 */
+.traffic-segment[data-km="1"],
+.traffic-segment[data-km="2"],
+.traffic-segment[data-km="3"] { flex: 60; }
+.traffic-segment[data-km="4"],
+.traffic-segment[data-km="5"],
+.traffic-segment[data-km="6"] { flex: 40; }
 .traffic-segment::after {
   content: attr(data-km) 'k';
   position: absolute;
@@ -186,15 +193,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.traffic-segment.unknown { background: var(--unknown); }
-.traffic-segment.green   { background: var(--green); }
-.traffic-segment.yellow  { background: var(--yellow); }
-.traffic-segment.orange  { background: var(--orange); }
-.traffic-segment.red     { background: var(--red); animation: pulse-red 1.5s infinite; }
+.traffic-segment.unknown     { background: var(--unknown); }
+.traffic-segment.green       { background: var(--green); }
+.traffic-segment.yellow      { background: var(--yellow); }
+.traffic-segment.orange      { background: var(--orange); }
+.traffic-segment.red         { background: var(--red); animation: pulse-red 1.5s infinite; }
+.traffic-segment.rapid-decel { background: var(--red); animation: pulse-rapid 0.4s infinite; }
 
 @keyframes pulse-red {
   0%, 100% { background: var(--red); }
   50%       { background: var(--red-light); }
+}
+@keyframes pulse-rapid {
+  0%, 100% { background: var(--red-light); box-shadow: 0 0 8px var(--red-light); }
+  50%       { background: #ff2020; box-shadow: 0 0 18px #ff2020; }
 }
 
 .traffic-scale {
@@ -250,11 +262,32 @@ body {
   gap: 12px;
   width: 100%;
   box-shadow: 0 0 20px rgba(189,86,29,.3);
+  animation: flash-warning 2s ease-in-out infinite;
 }
 
 .alert-card.red-alert {
   border-color: var(--red-light);
-  box-shadow: 0 0 20px rgba(218,54,51,.3);
+  box-shadow: 0 0 20px rgba(218,54,51,.4);
+  animation: flash-red 0.9s ease-in-out infinite;
+}
+
+.alert-card.critical-alert {
+  border-color: #ff2020;
+  box-shadow: 0 0 30px rgba(255,32,32,.6);
+  animation: flash-critical 0.35s ease-in-out infinite;
+}
+
+@keyframes flash-warning {
+  0%, 100% { border-color: var(--orange); box-shadow: 0 0 20px rgba(189,86,29,.3); }
+  50%       { border-color: var(--orange-light); box-shadow: 0 0 32px rgba(219,109,40,.6); }
+}
+@keyframes flash-red {
+  0%, 100% { border-color: var(--red-light); box-shadow: 0 0 20px rgba(218,54,51,.4); }
+  50%       { border-color: #ff4444; box-shadow: 0 0 40px rgba(218,54,51,.8); }
+}
+@keyframes flash-critical {
+  0%, 100% { border-color: #ff2020; box-shadow: 0 0 30px rgba(255,32,32,.6); background: var(--bg-card); }
+  50%       { border-color: #ff6666; box-shadow: 0 0 50px rgba(255,32,32,1); background: rgba(180,30,30,.25); }
 }
 
 .alert-icon-text {

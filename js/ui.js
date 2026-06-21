@@ -54,6 +54,7 @@ const UI = (() => {
     segs.forEach((el, i) => {
       const seg = segments[i] || { level: Traffic.LEVEL.UNKNOWN };
       el.className = `traffic-segment ${Traffic.LEVEL_CLASS[seg.level] || 'unknown'}`;
+      if (seg.rapidDecel) el.classList.add('rapid-decel');
     });
   }
 
@@ -69,7 +70,7 @@ const UI = (() => {
     const pad = n => String(n).padStart(2, '0');
     timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-    card.classList.remove('hidden', 'red-alert');
+    card.classList.remove('hidden', 'red-alert', 'critical-alert');
     if (level >= Traffic.LEVEL.RED) card.classList.add('red-alert');
     noAlert.classList.add('hidden');
 
@@ -81,8 +82,34 @@ const UI = (() => {
     }, 5 * 60 * 1000);
   }
 
+  // 顯示急速失速緊急警示（最高優先）
+  function showCriticalAlert(message) {
+    const card = $('alertCard');
+    const msgEl = $('alertMessage');
+    const timeEl = $('alertTime');
+    const noAlert = $('noAlertText');
+
+    msgEl.textContent = message;
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    card.classList.remove('hidden', 'red-alert');
+    card.classList.add('critical-alert');
+    noAlert.classList.add('hidden');
+
+    clearTimeout(UI._alertTimer);
+    UI._alertTimer = setTimeout(() => {
+      card.classList.add('hidden');
+      card.classList.remove('critical-alert');
+      noAlert.classList.remove('hidden');
+    }, 5 * 60 * 1000);
+  }
+
   function clearAlert() {
-    $('alertCard').classList.add('hidden');
+    const card = $('alertCard');
+    card.classList.add('hidden');
+    card.classList.remove('critical-alert');
     $('noAlertText').classList.remove('hidden');
     clearTimeout(UI._alertTimer);
   }
@@ -193,6 +220,7 @@ const UI = (() => {
     updatePushStatus,
     updateTrafficBar,
     showAlert,
+    showCriticalAlert,
     clearAlert,
     setMonitoringState,
     bindEvents,
