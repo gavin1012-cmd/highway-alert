@@ -92,6 +92,7 @@ const App = (() => {
   async function stopMonitoring() {
     isMonitoring = false;
     lastKnownRoadName = null;
+    Traffic.resetCorridor();
     UI.setMonitoringState(false);
     UI.updatePushStatus('inactive');
 
@@ -129,24 +130,28 @@ const App = (() => {
     const segments = Traffic.getAheadSegments(pos);
     UI.updateTrafficBar(segments);
 
-    // 更新路名（2 km 內有主線 VD 站才顯示）
+    // 更新廊道鎖定（進入國道後鎖定，2 分鐘無 VD 站才解鎖）
+    const corridor = Traffic.updateCorridorLock(pos);
+
+    // 更新路名（廊道鎖定時搜尋範圍放寬；未鎖定時 2km 內才顯示）
     const roadName = Traffic.getNearestRoadName(pos);
     if (roadName) {
       lastKnownRoadName = roadName;
       document.getElementById('roadInfo').textContent = roadName;
+    } else if (!corridor && lastKnownRoadName) {
+      // 離開國道後清除路名
+      lastKnownRoadName = null;
     }
 
-    // 預警邏輯：確認在高速公路上（附近 1.5 km 內有 VD 站且車速 > 10 km/h）才警示
+    // 預警邏輯：廊道已鎖定（確實在國道上）且車速 > 10 km/h 才警示
     const alertDist = Geo.getAlertDistance(
       pos.speed,
       document.querySelector('input[name="alertDist"]:checked')?.value || 'auto'
     );
     const relevantSegs = segments.filter(s => s.km <= alertDist);
     const testMode = document.getElementById('testMode')?.checked || false;
-    const nearVD = testMode || Object.values(Traffic.getLatestConditions()).some(
-      s => Geo.distanceBetween(pos.lat, pos.lng, s.lat, s.lng) <= 2.5
-    );
-    const triggered = (nearVD && (testMode || pos.speed > 10)) ? Alert.checkSegments(relevantSegs) : [];
+    const onHighway = testMode || !!corridor;
+    const triggered = (onHighway && (testMode || pos.speed > 10)) ? Alert.checkSegments(relevantSegs) : [];
 
     if (triggered.length > 0) {
       // 取最嚴重的警示顯示

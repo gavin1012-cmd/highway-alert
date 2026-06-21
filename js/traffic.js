@@ -1,11 +1,13 @@
 // 路況資料取得與解析（前端直接呼叫 Worker CORS proxy）
 
 const Traffic = (() => {
-  // VD 站位快取（靜態座標資料）
-  let stationCache = null;
   let lastFetchTime = 0;
-  // 最新各站路況 { stationId: { speed, level, lat, lng, name } }
-  let latestConditions = {};
+  let latestConditions = {};  // { [VDID]: { id, lat, lng, speed, occupancy, level } }
+  let prevConditions = {};    // 上次快照，用來偵測速度趨勢
+
+  // 廊道鎖定：偵測到使用者在哪條國道後鎖定，只顯示該廊道資料
+  let lockedCorridor = null;  // e.g. 'N3-S'
+  let unlockTimer = null;
 
   // 路況等級
   const LEVEL = { GREEN: 0, YELLOW: 1, ORANGE: 2, RED: 3, UNKNOWN: -1 };
@@ -21,6 +23,50 @@ const Traffic = (() => {
     return LEVEL.RED;
   }
 
+  // 從 VDID 解析廊道識別碼，例：VD-N3-S-200-M-RS → 'N3-S'
+  function parseVDIDCorridor(vdid) {
+    const m = vdid.match(/^VD-([A-Z]\d+)-([NSEW])-/);
+    return m ? `${m[1]}-${m[2]}` : null;
+  }
+
+  // 更新廊道鎖定（每次 pollTraffic 呼叫）
+  function updateCorridorLock(position) {
+    if (!position) return lockedCorridor;
+
+    // 找 1.5 km 內最近的主線 VD 站
+    let nearestId = null, minDist = Infinity;
+    Object.entries(latestConditions).forEach(([id, st]) => {
+      const d = Geo.distanceBetween(position.lat, position.lng, st.lat, st.lng);
+      if (d < minDist && d <= 1.5) { minDist = d; nearestId = id; }
+    });
+
+    if (nearestId) {
+      const corridor = parseVDIDCorridor(nearestId);
+      if (corridor) {
+        if (corridor !== lockedCorridor) {
+          console.log('[Traffic] Corridor locked:', corridor);
+          lockedCorridor = corridor;
+        }
+        // 重置解鎖計時器：120 秒無 VD 站才解鎖（100km/h 時約 3.3km，覆蓋最大站距）
+        if (unlockTimer) clearTimeout(unlockTimer);
+        unlockTimer = setTimeout(() => {
+          console.log('[Traffic] Corridor unlocked');
+          lockedCorridor = null;
+          unlockTimer = null;
+        }, 120000);
+      }
+    }
+
+    return lockedCorridor;
+  }
+
+  function getLockedCorridor() { return lockedCorridor; }
+
+  function resetCorridor() {
+    lockedCorridor = null;
+    if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
+  }
+
   // 透過 Cloudflare Worker 的 CORS proxy 取路況
   async function fetchViaWorker(lat, lng) {
     const workerUrl = APP_CONFIG.WORKER_URL;
@@ -31,77 +77,16 @@ const Traffic = (() => {
     return res.json();
   }
 
-  // 直接呼叫 TISVCLOUD（若有 CORS 允許，螢幕亮時備用）
-  async function fetchTISVCLOUD() {
-    const now = new Date();
-    const min5 = Math.floor(now.getUTCMinutes() / 5) * 5;
-    const pad = n => String(n).padStart(2, '0');
-    const dateStr = `${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}`;
-    const hourStr = pad(now.getUTCHours() + 8 > 23 ? now.getUTCHours() + 8 - 24 : now.getUTCHours() + 8);
-    const minStr = pad(min5 === 0 && now.getUTCMinutes() < 5 ? 55 : min5 - 5);
-    // 實際上取前一個 5 分鐘時段（最新可用資料）
-    const url = `https://tisvcloud.freeway.gov.tw/history/TDCS/M05A/${dateStr}/${hourStr}/M05A_${dateStr}_${hourStr}${minStr}00.xml`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) throw new Error(`TISVCLOUD HTTP ${res.status}`);
-    const text = await res.text();
-    return parseM05AXML(text);
-  }
-
-  // 解析 M05A XML 回傳速度資料
-  function parseM05AXML(xmlText) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlText, 'application/xml');
-    const sections = doc.querySelectorAll('Section, VDLive');
-    const stations = [];
-
-    sections.forEach(sec => {
-      // M05A 格式：<Section> 底下有 <VehicleType typeID="31"> 一般小客車
-      const sid = sec.getAttribute('SectionID') || sec.getAttribute('VDID') || '';
-      const lat = parseFloat(sec.getAttribute('Latitude') || sec.getAttribute('lat') || '0');
-      const lng = parseFloat(sec.getAttribute('Longitude') || sec.getAttribute('lon') || '0');
-
-      // 取所有車種的速度，優先取 typeID=31（小客車）
-      let speed = -1;
-      const vtNodes = sec.querySelectorAll('VehicleType');
-      vtNodes.forEach(vt => {
-        const tid = vt.getAttribute('TypeID') || vt.getAttribute('typeID') || '';
-        const spNode = vt.querySelector('Speed');
-        if (spNode) {
-          const s = parseFloat(spNode.textContent);
-          if (tid === '31') speed = s;
-          else if (speed < 0 && !isNaN(s) && s > 0) speed = s;
-        }
-      });
-
-      // 有些格式直接在 Section 上有 Speed 屬性
-      if (speed < 0) {
-        const directSpeed = parseFloat(sec.getAttribute('Speed') || '-1');
-        if (directSpeed > 0) speed = directSpeed;
-      }
-
-      if (lat && lng && sid) {
-        stations.push({ id: sid, lat, lng, speed, level: speedToLevel(speed) });
-      }
-    });
-
-    return stations;
-  }
-
-  // 主要更新函式 - 取前方路況
+  // 主要更新函式
   async function updateConditions(position) {
     const now = Date.now();
-    // 30 秒內不重複取資料
     if (now - lastFetchTime < 25000) return latestConditions;
 
     let stations = [];
     try {
       if (APP_CONFIG.WORKER_URL) {
-        // 透過 Worker 取資料（Worker 端解析好後回傳 JSON）
         const data = await fetchViaWorker(position.lat, position.lng);
         stations = data.stations || [];
-      } else {
-        // 直接嘗試 TISVCLOUD（可能被 CORS 擋）
-        stations = await fetchTISVCLOUD();
       }
       lastFetchTime = now;
     } catch (err) {
@@ -109,7 +94,13 @@ const Traffic = (() => {
       return latestConditions;
     }
 
-    // 更新快取
+    // 保存上次快照，供速度趨勢比較
+    prevConditions = {};
+    Object.entries(latestConditions).forEach(([id, st]) => {
+      prevConditions[id] = { speed: st.speed, level: st.level };
+    });
+
+    // 更新快取（Worker 已回傳佔有率調整後的 level）
     stations.forEach(s => {
       latestConditions[s.id] = s;
     });
@@ -117,17 +108,15 @@ const Traffic = (() => {
     return latestConditions;
   }
 
-  // 取得前方指定公里處最近的 VD 站路況
+  // 取得指定座標點最近的 VD 站路況
+  // 若已鎖定廊道，只搜尋該廊道的站位
   function getConditionAtPoint(targetLat, targetLng, maxDistKm = 2.5) {
-    let nearest = null;
-    let minDist = Infinity;
+    let nearest = null, minDist = Infinity;
 
     Object.values(latestConditions).forEach(st => {
+      if (lockedCorridor && parseVDIDCorridor(st.id) !== lockedCorridor) return;
       const d = Geo.distanceBetween(targetLat, targetLng, st.lat, st.lng);
-      if (d < minDist && d <= maxDistKm) {
-        minDist = d;
-        nearest = st;
-      }
+      if (d < minDist && d <= maxDistKm) { minDist = d; nearest = st; }
     });
 
     return nearest
@@ -135,14 +124,22 @@ const Traffic = (() => {
       : { level: LEVEL.UNKNOWN, speed: -1, distKm: null };
   }
 
-  // 取得前方 10 公里每 1 km 的路況（供色塊條用）
+  // 取得前方 10 公里每 1 km 的路況（含速度趨勢調整）
   function getAheadSegments(position) {
     if (!position) return Array(10).fill({ level: LEVEL.UNKNOWN });
     const segments = [];
     for (let km = 1; km <= 10; km++) {
       const pt = Geo.pointAhead(position.lat, position.lng, position.heading, km);
       const cond = getConditionAtPoint(pt.lat, pt.lng);
-      segments.push({ km, ...cond });
+
+      // 速度趨勢：若該站速度比上次下降 ≥15 km/h，等級加重一級
+      let level = cond.level;
+      if (cond.id && cond.level !== LEVEL.UNKNOWN && prevConditions[cond.id]) {
+        const drop = (prevConditions[cond.id].speed || 0) - (cond.speed || 0);
+        if (drop >= 15) level = Math.min(level + 1, LEVEL.RED);
+      }
+
+      segments.push({ km, ...cond, level });
     }
     return segments;
   }
@@ -163,14 +160,19 @@ const Traffic = (() => {
     return `${route} ${dir} ${km}K`;
   }
 
-  // 取得最近主線 VD 站的路名（2 km 內才顯示）
-  function getNearestRoadName(position, maxDistKm = 2.0) {
+  // 取得路名：廊道鎖定時搜尋範圍放寬到 5km，未鎖定則 2km 內才顯示
+  function getNearestRoadName(position) {
+    const searchDist = lockedCorridor ? 5.0 : 2.0;
     let nearest = null, minDist = Infinity;
+
     Object.entries(latestConditions).forEach(([id, st]) => {
-      if (!id.includes('-M-')) return;
+      if (lockedCorridor) {
+        if (parseVDIDCorridor(id) !== lockedCorridor) return;
+      }
       const d = Geo.distanceBetween(position.lat, position.lng, st.lat, st.lng);
-      if (d < minDist && d <= maxDistKm) { minDist = d; nearest = id; }
+      if (d < minDist && d <= searchDist) { minDist = d; nearest = id; }
     });
+
     return nearest ? parseVDID(nearest) : null;
   }
 
@@ -180,6 +182,9 @@ const Traffic = (() => {
     LEVEL_CLASS,
     speedToLevel,
     updateConditions,
+    updateCorridorLock,
+    getLockedCorridor,
+    resetCorridor,
     getConditionAtPoint,
     getAheadSegments,
     getLatestConditions: () => latestConditions,

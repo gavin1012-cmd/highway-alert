@@ -1,6 +1,6 @@
 // Service Worker：快取 App Shell + 接收 Web Push
 
-const CACHE_NAME = 'highway-alert-v3';
+const CACHE_NAME = 'highway-alert-v4';
 const SHELL_FILES = [
   '/highway-alert/',
   '/highway-alert/index.html',
